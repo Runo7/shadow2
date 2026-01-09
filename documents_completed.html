@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fertige Dokumente</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <header class="mobile-header">
+        <a href="documents.html" style="color: var(--text-color); font-size: 1.2rem;"><i
+                class="fas fa-arrow-left"></i></a>
+        <h1>Fertige Dokumente</h1>
+        <div style="width: 20px;"></div> <!-- Spacer -->
+    </header>
+
+    <div class="container">
+        <div class="card" id="completed-docs-list">
+            <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem;">
+                <i class="fas fa-spinner fa-spin"></i> Lade Dokumente...
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-client.js"></script>
+    <script src="../mock_data.js"></script>
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.checkAuth();
+        });
+    </script>
+</body>
+
+</html>
