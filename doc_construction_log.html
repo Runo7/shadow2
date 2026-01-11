@@ -59,7 +59,62 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-client.js"></script>
     <script src="script.js"></script>
+    <script>
+        // Optional: Add logic to handle file input click on the camera div if implemented
+
+        async function saveDocument() {
+            const btn = document.querySelector('.btn-sign');
+            if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Speichern...';
+
+            const section = document.querySelector('select.form-input').value;
+            const notes = document.querySelector('textarea.form-input').value;
+
+            // Signature
+            const canvas = document.querySelector('#pad-site-manager canvas');
+            const sigData = canvas ? canvas.toDataURL() : '';
+
+            const date = new Date().toISOString().split('T')[0];
+            const title = `Bautagebuch: ${section}`;
+
+            const docData = {
+                title: title,
+                order_name: 'Baudokumentation',
+                date: date,
+                type: 'Baudokumentation',
+                content: {
+                    construction_phase: section,
+                    notes: notes,
+                    photos: [], // Upload not implemented yet
+                    signatures: {
+                        site_manager: sigData
+                    }
+                },
+                created_at: new Date().toISOString()
+            };
+
+            if (window.supa) {
+                try {
+                    const { data, error } = await window.supa
+                        .from('documents')
+                        .insert([docData]);
+                    if (error) throw error;
+                    console.log('Document saved to Supabase');
+                } catch (err) {
+                    console.error('Supabase save failed:', err);
+                    alert('Fehler: Konnte nicht in Cloud speichern.');
+                }
+            } else {
+                alert('Keine Verbindung zur Datenbank.');
+            }
+
+            alert('Bautagebuch-Eintrag gespeichert!');
+            window.location.href = 'documents.html';
+        }
+    </script>
 
 </body>
 

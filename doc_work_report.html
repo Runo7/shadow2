@@ -50,7 +50,7 @@
 
             <div class="form-row">
                 <label class="form-label">Datum</label>
-                <input type="date" class="form-input" value="2025-12-29">
+                <input type="date" id="report-date" class="form-input" value="2025-12-29">
             </div>
 
             <div class="form-row">
@@ -79,7 +79,7 @@
 
             <div class="form-row">
                 <label class="form-label">Arbeitszeit (Std)</label>
-                <input type="number" class="form-input" placeholder="z.B. 4.5">
+                <input type="number" id="report-time" class="form-input" placeholder="z.B. 4.5">
             </div>
         </div>
 
@@ -105,6 +105,8 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-client.js"></script>
     <script src="script.js"></script>
 </body>
 

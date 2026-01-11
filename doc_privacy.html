@@ -47,24 +47,64 @@
         <div class="signature-section">
             <label class="form-label">Unterschrift Kunde</label>
             <div class="signature-pad" id="sig-pad">
-                <p style="text-align: center; color: #ccc; padding-top: 80px; pointer-events: none;">Hier unterschreiben
-                </p>
+                <canvas class="signature-canvas"></canvas>
             </div>
             <button class="btn-clear" onclick="clearSignature()">Löschen</button>
             <button class="btn-sign" onclick="saveDocument()">Dokument speichern</button>
         </div>
     </div>
 
+    </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-client.js"></script>
     <script src="script.js"></script>
     <script>
-        // Simple mock for clearing signature 
-        function clearSignature() {
-            // In a real app, this would clear the canvas
-            alert('Unterschrift gelöscht (Mock)');
-        }
+        async function saveDocument() {
+            const btn = document.querySelector('.btn-sign');
+            if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Speichern...';
 
-        function saveDocument() {
-            alert('Dokument gespeichert und signiert!');
+            const name = document.querySelector('input[placeholder="Vorname Nachname"]').value || 'Unbekannt';
+
+            // Signature (Logic from script.js initialized canvas)
+            const canvas = document.querySelector('#sig-pad canvas');
+            const sigData = canvas ? canvas.toDataURL() : '';
+
+            const date = new Date().toISOString().split('T')[0];
+            const title = `Datenschutz: ${name}`;
+
+            const docData = {
+                title: title,
+                order_name: 'Datenschutz',
+                date: date,
+                type: 'Datenschutz',
+                content: {
+                    customer_name: name,
+                    signatures: {
+                        customer: sigData
+                    }
+                },
+                created_at: new Date().toISOString()
+            };
+
+            if (window.supa) {
+                try {
+                    const { data, error } = await window.supa
+                        .from('documents')
+                        .insert([docData]);
+                    if (error) throw error;
+                    console.log('Document saved to Supabase');
+                } catch (err) {
+                    console.error('Supabase save failed:', err);
+                    alert('Fehler: Konnte nicht in Cloud speichern.');
+                }
+            } else {
+                alert('Keine Verbindung zur Datenbank.');
+            }
+
+            alert('Datenschutz-Erklärung gespeichert!');
             window.location.href = 'documents.html';
         }
     </script>

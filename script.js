@@ -45,7 +45,13 @@ class SignaturePad {
         this.ctx = canvas.getContext('2d');
         this.isDrawing = false;
 
-        // Resize canvas to match display size (prevent pixelation)
+        // Settings
+        this.ctx.lineWidth = 2;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.strokeStyle = '#000000';
+
+        // High DPI & Resize Logic
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
@@ -55,21 +61,39 @@ class SignaturePad {
         this.canvas.addEventListener('mouseup', () => this.stop());
         this.canvas.addEventListener('mouseout', () => this.stop());
 
+        // Passive false is crucial for touch to prevent scrolling
         this.canvas.addEventListener('touchstart', (e) => this.start(e), { passive: false });
         this.canvas.addEventListener('touchmove', (e) => this.draw(e), { passive: false });
         this.canvas.addEventListener('touchend', () => this.stop());
     }
 
     resize() {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
         const rect = this.canvas.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
+
+        this.canvas.width = rect.width * ratio;
+        this.canvas.height = rect.height * ratio;
+        this.ctx.scale(ratio, ratio);
+
+        // Reset styles after resize/scale reset
+        this.ctx.lineWidth = 2;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.strokeStyle = '#000000';
     }
 
     getPos(e) {
         const rect = this.canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        let clientX, clientY;
+
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
         return {
             x: clientX - rect.left,
             y: clientY - rect.top
@@ -77,7 +101,7 @@ class SignaturePad {
     }
 
     start(e) {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         this.isDrawing = true;
         const pos = this.getPos(e);
         this.ctx.beginPath();
@@ -86,7 +110,7 @@ class SignaturePad {
 
     draw(e) {
         if (!this.isDrawing) return;
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         const pos = this.getPos(e);
         this.ctx.lineTo(pos.x, pos.y);
         this.ctx.stroke();
@@ -98,6 +122,7 @@ class SignaturePad {
 
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.beginPath();
     }
 }
 
@@ -186,25 +211,15 @@ window.startDictation = function (fieldId) {
 };
 
 /* --- SHARED HELPER FOR A4 CONTENT --- */
+/* --- SHARED HELPER FOR A4 CONTENT --- */
 window.generateA4HTML = function () {
-    // 1. Gather Data (Duplicate logic for safety/independence)
-    // We try to get values from standard IDs.
+    // 1. Gather Data (Using specific IDs now)
     const order = document.getElementById('report-order')?.value || '-';
     const title = document.getElementById('report-title')?.value || '-';
-    const date = document.querySelector('input[type="date"]')?.value || new Date().toLocaleDateString('de-DE');
+    const date = document.getElementById('report-date')?.value || new Date().toLocaleDateString('de-DE');
     const desc = document.getElementById('report-desc')?.value || '-';
     const mat = document.getElementById('report-materials')?.value || '-';
-
-    // Time input hunting
-    let time = '-';
-    const labels = document.querySelectorAll('.form-label');
-    for (let l of labels) {
-        if (l.textContent.includes('Arbeitszeit')) {
-            const input = l.nextElementSibling;
-            if (input) time = input.value;
-            break;
-        }
-    }
+    const time = document.getElementById('report-time')?.value || '-';
 
     // Signatures
     const canvasCustomer = document.querySelector('#pad-customer canvas');
@@ -279,40 +294,12 @@ window.generateA4HTML = function () {
 /* --- PREVIEW LOGIC --- */
 /* --- PREVIEW LOGIC --- */
 window.showA4Preview = function (docTitle) {
-    // 1. Gather Data
-    const order = document.getElementById('report-order')?.value || '-';
-    const title = document.getElementById('report-title')?.value || '-';
-    const date = document.querySelector('input[type="date"]')?.value || new Date().toLocaleDateString('de-DE');
-    const desc = document.getElementById('report-desc')?.value || '-';
-    const mat = document.getElementById('report-materials')?.value || '-';
-    // Work time input doesn't have an ID in previous step, let's try to find it or defaulting
-    // Ideally we should have added an ID. Assuming it's the 3rd input type=number or similar.
-    // Let's use a querySelector for the input in the "Arbeitszeit" row.
-    // Finding input after label "Arbeitszeit (Std)"
-    let time = '-';
-    const labels = document.querySelectorAll('.form-label');
-    for (let l of labels) {
-        if (l.textContent.includes('Arbeitszeit')) {
-            const input = l.nextElementSibling;
-            if (input) time = input.value;
-            break;
-        }
-    }
+    // Re-use the master generation function to ensure consistency
+    const htmlContent = generateA4HTML();
 
-    // 2. Capture Signatures
-    const canvasCustomer = document.querySelector('#pad-customer canvas');
-    const canvasTech = document.querySelector('#pad-technician canvas');
-
-    // Check if not empty (simple check) -- relying on if user drew something.
-    // We can use toDataURL.
-    const sigCustomerData = canvasCustomer ? canvasCustomer.toDataURL() : '';
-    const sigTechData = canvasTech ? canvasTech.toDataURL() : '';
-
-    // 3. Build HTML
+    // Build Overlay
     const overlay = document.createElement('div');
     overlay.className = 'a4-preview-overlay';
-
-    const today = new Date().toLocaleDateString('de-DE');
 
     overlay.innerHTML = `
         <div class="print-controls">
@@ -323,65 +310,7 @@ window.showA4Preview = function (docTitle) {
                 <i class="fas fa-times"></i> Schließen
             </button>
         </div>
-
-        <div class="a4-page">
-            <div class="a4-header">
-                <div>
-                    <div class="a4-title">Arbeitsnachweis</div>
-                    <div style="margin-top:5px; font-weight:600;">Handwerker GmbH & Co. KG</div>
-                </div>
-                <div class="a4-meta">
-                    Datum: ${date}<br>
-                    Dokument-Nr: ${Math.floor(Math.random() * 10000) + 1000}
-                </div>
-            </div>
-
-            <div class="a4-section">
-                <span class="a4-label">Auftrag / Tätigkeit</span>
-                <div class="a4-value" style="font-weight: bold;">${order}</div>
-            </div>
-
-            <div class="a4-section">
-                <span class="a4-label">Kunde / Projekt</span>
-                <div class="a4-value">${title}</div>
-            </div>
-
-            <div class="a4-section" style="border: 1px solid #eee; padding: 10px; background: #f9f9f9;">
-                <span class="a4-label">Beschreibung der durchgeführten Arbeiten</span>
-                <div class="a4-value" style="min-height: 100px;">${desc}</div>
-            </div>
-
-            <div class="a4-section">
-                <span class="a4-label">Verwendetes Material</span>
-                <div class="a4-value">${mat}</div>
-            </div>
-
-            <div class="a4-section">
-                <span class="a4-label">Arbeitszeit</span>
-                <div class="a4-value">${time} Stunden</div>
-            </div>
-
-            <div class="a4-signatures">
-                <div class="a4-sig-box">
-                    <div style="height: 80px; display: flex; align-items: flex-end;">
-                        ${sigCustomerData ? `<img src="${sigCustomerData}" class="a4-sig-img" alt="Unterschrift Kunde">` : '<div style="color:#ccc; font-style:italic; padding-bottom:5px;">Keine Unterschrift</div>'}
-                    </div>
-                    <div class="a4-label" style="border-top: 1px solid #333; margin-top:5px;">Unterschrift Auftraggeber</div>
-                </div>
-                
-                <div class="a4-sig-box">
-                     <div style="height: 80px; display: flex; align-items: flex-end;">
-                        ${sigTechData ? `<img src="${sigTechData}" class="a4-sig-img" alt="Unterschrift Techniker">` : '<div style="color:#ccc; font-style:italic; padding-bottom:5px;">Keine Unterschrift</div>'}
-                    </div>
-                    <div class="a4-label" style="border-top: 1px solid #333; margin-top:5px;">Unterschrift Handwerker</div>
-                </div>
-            </div>
-            
-            <div style="margin-top: 50px; font-size: 10px; color: #999; text-align: center;">
-                Dieses Dokument wurde digital erstellt und ist auch ohne Unterschrift gültig (AGB beachten).<br>
-                Generiert am ${today}
-            </div>
-        </div>
+        ${htmlContent}
     `;
 
     document.body.appendChild(overlay);
@@ -459,46 +388,47 @@ window.saveDocument = async function () {
         content: {
             // Store PDF Data here
             pdf_data: pdfBase64,
-
             desc: document.getElementById('report-desc')?.value || '',
             materials: document.getElementById('report-materials')?.value || '',
-            time: document.querySelector('input[type="number"]')?.value || '',
+            time: document.getElementById('report-time')?.value || '',
             signatures: {
                 customer: document.querySelector('#pad-customer canvas')?.toDataURL() || '',
                 technician: document.querySelector('#pad-technician canvas')?.toDataURL() || ''
             }
         },
+        // Duplicate fields for easier listing access if schema requires it (or legacy)
+        // Ideally we should clean up schema to use just JSONB content or flattened columns.
+        // For now, keeping these as in previous code.
         desc: document.getElementById('report-desc')?.value || '',
         materials: document.getElementById('report-materials')?.value || '',
-        time: document.querySelector('input[type="number"]')?.value || '', // weak selector, but matches current form
+        time: document.getElementById('report-time')?.value || '',
         signatures: {
             customer: document.querySelector('#pad-customer canvas')?.toDataURL() || '',
             technician: document.querySelector('#pad-technician canvas')?.toDataURL() || ''
-        }
-    },
+        },
         created_at: new Date().toISOString()
-};
+    };
 
-// 3. Save to Supabase (documents table)
-if (window.supa) {
-    try {
-        const { data, error } = await window.supa
-            .from('documents')
-            .insert([docData]);
+    // 3. Save to Supabase (documents table)
+    if (window.supa) {
+        try {
+            const { data, error } = await window.supa
+                .from('documents')
+                .insert([docData]);
 
-        if (error) throw error;
-        console.log('Document saved to Supabase');
-    } catch (err) {
-        console.error('Supabase save failed:', err);
-        alert('Fehler beim Speichern in der Cloud. Speichere lokal...');
+            if (error) throw error;
+            console.log('Document saved to Supabase');
+        } catch (err) {
+            console.error('Supabase save failed:', err);
+            alert('Fehler beim Speichern in der Cloud. Speichere lokal...');
+            saveToLocal(docData);
+        }
+    } else {
         saveToLocal(docData);
     }
-} else {
-    saveToLocal(docData);
-}
 
-alert('Dokument erfolgreich gespeichert!');
-window.location.href = 'documents.html';
+    alert('Dokument erfolgreich gespeichert!');
+    window.location.href = 'documents.html';
 };
 
 function saveToLocal(docData) {

@@ -70,10 +70,88 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-client.js"></script>
     <script src="script.js"></script>
     <script>
-        function clearSignature() { alert('Unterschrift gelöscht (Mock)'); }
-        function saveDocument() { alert('Protokoll gespeichert!'); window.location.href = 'documents.html'; }
+        // Override clearSignature to use the class method if available or global helper
+        // The global helper in script.js is window.clearSignature(id).
+        // The mock function here was: function clearSignature() { alert('Unterschrift gelöscht (Mock)'); }
+        // We can just remove the mock function and let the button call the global one from script.js.
+        // However, the button uses onclick="clearSignature('pad-technician')".
+        // script.js defines window.clearSignature = function(padId) {...}
+        // So we just need to NOT define a conflicting local function.
+
+        async function saveDocument() {
+            const btn = document.querySelector('.btn-sign');
+            if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Speichern...';
+
+            // 1. Gather Data
+            const typeInputs = document.querySelectorAll('input[name="type"]');
+            let type = 'Gas';
+            typeInputs.forEach(inp => { if (inp.checked) type = inp.parentNode.textContent.trim(); });
+
+            const checklistMap = [
+                'Druckprüfung durchgeführt',
+                'Filter gereinigt',
+                'Sicherheitsventil getestet',
+                'Messwerte protokolliert'
+            ];
+            const checks = [];
+            const checkboxes = document.querySelectorAll('.form-row .form-label + div input[type="checkbox"]');
+            checkboxes.forEach((cb, idx) => {
+                const label = cb.parentNode.textContent.trim();
+                if (cb.checked) checks.push(label || checklistMap[idx] || 'Unbekannt');
+            });
+
+            const values = document.querySelector('textarea.form-input').value || '';
+
+            // Signature
+            const canvasTech = document.querySelector('#pad-technician canvas');
+            const sigTechData = canvasTech ? canvasTech.toDataURL() : '';
+
+            const date = new Date().toISOString().split('T')[0];
+            const title = `Wartung: ${type}`;
+
+            // 2. Prepare Data Object
+            const docData = {
+                title: title,
+                order_name: 'Wartung', // Could be dynamic if we had an order field
+                date: date,
+                type: 'Wartungsprotokoll',
+                content: {
+                    maintenance_type: type,
+                    checklist: checks,
+                    measured_values: values,
+                    signatures: {
+                        technician: sigTechData
+                    }
+                },
+                created_at: new Date().toISOString()
+            };
+
+            // 3. Save to Supabase
+            if (window.supa) {
+                try {
+                    const { data, error } = await window.supa
+                        .from('documents')
+                        .insert([docData]);
+
+                    if (error) throw error;
+                    console.log('Document saved to Supabase');
+                } catch (err) {
+                    console.error('Supabase save failed:', err);
+                    alert('Fehler beim Speichern in der Cloud. (Offline-Mode nicht implementiert für diesen Typ)');
+                    // Optional: Implement local save fallback like in script.js
+                }
+            } else {
+                alert('Keine Verbindung zur Datenbank (Supabase nicht initialisiert).');
+            }
+
+            alert('Wartungsprotokoll erfolgreich gespeichert!');
+            window.location.href = 'documents.html';
+        }
     </script>
 </body>
 

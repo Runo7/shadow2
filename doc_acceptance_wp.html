@@ -65,7 +65,66 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-client.js"></script>
     <script src="script.js"></script>
+    <script>
+        async function saveDocument() {
+            const btn = document.querySelector('.btn-sign');
+            if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Speichern...';
+
+            const model = document.querySelector('input[placeholder="Hersteller X, Modell Y"]').value || '-';
+            const serial = document.querySelectorAll('.form-input')[1].value || '-'; // Assuming 2nd input is SN
+
+            const checks = [];
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                if (cb.checked) checks.push(cb.parentNode.textContent.trim());
+            });
+
+            const remarks = document.querySelector('textarea').value || '';
+            const canvas = document.querySelector('#pad-operator canvas');
+            const sigData = canvas ? canvas.toDataURL() : '';
+
+            const date = new Date().toISOString().split('T')[0];
+            const title = `Abnahme WP: ${model}`;
+
+            const docData = {
+                title: title,
+                order_name: 'Abnahme WP',
+                date: date,
+                type: 'Abnahmeprotokoll_WP',
+                content: {
+                    model: model,
+                    serial_number: serial,
+                    checklist: checks,
+                    remarks: remarks,
+                    signatures: {
+                        operator: sigData
+                    }
+                },
+                created_at: new Date().toISOString()
+            };
+
+            if (window.supa) {
+                try {
+                    const { data, error } = await window.supa
+                        .from('documents')
+                        .insert([docData]);
+                    if (error) throw error;
+                    console.log('Document saved to Supabase');
+                } catch (err) {
+                    console.error('Supabase save failed:', err);
+                    alert('Fehler: Konnte nicht in Cloud speichern.');
+                }
+            } else {
+                alert('Keine Verbindung zur Datenbank.');
+            }
+
+            alert('Abnahmeprotokoll erfolgreich gespeichert!');
+            window.location.href = 'documents.html';
+        }
+    </script>
 
 </body>
 
