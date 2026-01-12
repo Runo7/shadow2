@@ -234,7 +234,7 @@ window.generateA4HTML = function () {
             <div class="a4-header">
                 <div>
                     <div class="a4-title">Arbeitsnachweis</div>
-                    <div style="margin-top:5px; font-weight:600;">Handwerker GmbH & Co. KG</div>
+                    <div style="margin-top:5px; font-weight:600;">DWB Energy</div>
                 </div>
                 <div class="a4-meta">
                     Datum: ${date}<br>
